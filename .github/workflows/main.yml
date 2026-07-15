@@ -24,20 +24,20 @@ jobs:
       - name: Convert, rename, and tag each page
         run: |
           mkdir -p output
-          find source -type f -iname "*.mp3" | sort | while read -r f; do
+          while read -r f; do
             base=$(basename "$f")
-            # pull the numeric page number out of the filename, e.g. 001.mp3 -> 001
+            # pull the numeric page number out of the filename, e.g. Page001.mp3 -> 001
             num=$(echo "$base" | grep -oE '[0-9]+' | head -1)
             # normalize to 3 digits
             page=$(printf "%03d" "$((10#$num))")
             out="output/page ${page}.m4a"
-            ffmpeg -y -i "$f" \
+            ffmpeg -nostdin -y -i "$f" \
               -filter:a "atempo=1.5" \
               -c:a aac -b:a 24k \
               -metadata artist="Abdul Basit - Murattal" \
               -metadata title="Page ${page}" \
               "$out"
-          done
+          done < <(find source -type f -iname "*.mp3" | sort)
 
       - name: Zip converted files
         run: |
