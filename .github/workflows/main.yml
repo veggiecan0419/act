@@ -1,0 +1,53 @@
+name: Convert Quran Pages (AAC 24kbps @ 1.5x)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ffmpeg and unzip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg unzip
+
+      - name: Download source zip
+        run: |
+          curl -L -o source.zip "https://everyayah.com/data/Abdul_Basit_Murattal_64kbps/PageMp3s/000_allfiles.zip"
+
+      - name: Extract source zip
+        run: |
+          mkdir -p source
+          unzip -q source.zip -d source
+
+      - name: Convert, rename, and tag each page
+        run: |
+          mkdir -p output
+          find source -type f -iname "*.mp3" | sort | while read -r f; do
+            base=$(basename "$f")
+            # pull the numeric page number out of the filename, e.g. 001.mp3 -> 001
+            num=$(echo "$base" | grep -oE '[0-9]+' | head -1)
+            # normalize to 3 digits
+            page=$(printf "%03d" "$((10#$num))")
+            out="output/page ${page}.m4a"
+            ffmpeg -y -i "$f" \
+              -filter:a "atempo=1.5" \
+              -c:a aac -b:a 24k \
+              -metadata artist="Abdul Basit - Murattal" \
+              -metadata title="Page ${page}" \
+              "$out"
+          done
+
+      - name: Zip converted files
+        run: |
+          cd output
+          zip -q -r ../quran.zip .
+          cd ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quran
+          path: quran.zip
+          retention-days: 30
