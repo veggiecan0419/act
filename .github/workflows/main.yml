@@ -7,37 +7,61 @@ jobs:
   convert:
     runs-on: ubuntu-latest
     steps:
-      - name: Install ffmpeg and unzip
+      - name: Install ffmpeg, unzip, and zip
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg unzip
+          sudo apt-get install -y ffmpeg unzip zip
 
       - name: Download source zip
         run: |
-          curl -L -o source.zip "https://everyayah.com/data/Abdul_Basit_Murattal_64kbps/PageMp3s/000_allfiles.zip"
+          # use -f to fail on HTTP errors
+          curl -fL -o source.zip "https://everyayah.com/data/Abdul_Basit_Murattal_64kbps/PageMp3s/000_allfiles.zip"
 
       - name: Extract source zip
         run: |
           mkdir -p source
-          unzip -q source.zip -d source
+          # overwrite if needed
+          unzip -q -o source.zip -d source
 
       - name: Convert, rename, and tag each page
         run: |
+          set -o pipefail
           mkdir -p output
-          while read -r f; do
+          # record skipped files for inspection
+          : > skipped_files.txt
+
+          # Process files, skipping empty or corrupted files.
+          find source -type f -iname "*.mp3" | sort | while read -r f; do
             base=$(basename "$f")
             # pull the numeric page number out of the filename, e.g. Page001.mp3 -> 001
             num=$(echo "$base" | grep -oE '[0-9]+' | head -1)
             # normalize to 3 digits
             page=$(printf "%03d" "$((10#$num))")
             out="output/page ${page}.m4a"
-            ffmpeg -nostdin -y -i "$f" \
+
+            # skip empty files
+            if [ ! -s "$f" ]; then
+              echo "Skipping empty file: $f" | tee -a skipped_files.txt
+              continue
+            fi
+
+            # quick sanity check with ffprobe; skip if ffprobe reports an error
+            if ! ffprobe -v error -show_entries format=format_name -of default=noprint_wrappers=1:nokey=1 "$f" >/dev/null 2>&1; then
+              echo "Skipping invalid or corrupted file (ffprobe failed): $f" | tee -a skipped_files.txt
+              continue
+            fi
+
+            echo "Converting: $f -> $out"
+            if ! ffmpeg -nostdin -hide_banner -loglevel error -y -i "$f" \
               -filter:a "atempo=1.5" \
               -c:a aac -b:a 24k \
               -metadata artist="Abdul Basit - Murattal" \
               -metadata title="Page ${page}" \
-              "$out"
-          done < <(find source -type f -iname "*.mp3" | sort)
+              "$out"; then
+              echo "ffmpeg conversion failed for $f — skipping." | tee -a skipped_files.txt
+              continue
+            fi
+          done
 
       - name: Zip converted files
         run: |
@@ -49,5 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: quran
-          path: quran.zip
+          path: |
+            quran.zip
+            skipped_files.txt
           retention-days: 30
