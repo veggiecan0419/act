@@ -1,4 +1,4 @@
-name: Convert Quran Pages (AAC 24kbps @ 1.5x)
+name: Convert Quran Pages (AAC 32kbps @ 1.25x)
 
 on:
   workflow_dispatch:
@@ -53,8 +53,8 @@ jobs:
 
             echo "Converting: $f -> $out"
             if ! ffmpeg -nostdin -hide_banner -loglevel error -y -i "$f" \
-              -filter:a "atempo=1.5" \
-              -c:a aac -b:a 24k \
+              -filter:a "atempo=1.25" \
+              -c:a aac -b:a 32k \
               -metadata artist="Abdul Basit - Murattal" \
               -metadata title="Page ${page}" \
               "$out"; then
