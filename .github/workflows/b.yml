@@ -1,4 +1,4 @@
-name: Convert Quran Pages (AAC 24kbps @ 1.5x)
+name: Convert Quran Pages (AAC 32kbps @ 1.5x)
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ jobs:
       - name: Download source zip
         run: |
           # use -f to fail on HTTP errors
-          curl -fL -o source.zip "https://everyayah.com/data/khalefa_al_tunaiji_64kbps/PageMp3s/000_allfiles.zip"
+          curl -fL -o source.zip "https://everyayah.com/data/Abdul_Basit_Murattal_64kbps/PageMp3s/000_allfiles.zip"
 
       - name: Extract source zip
         run: |
@@ -54,8 +54,8 @@ jobs:
             echo "Converting: $f -> $out"
             if ! ffmpeg -nostdin -hide_banner -loglevel error -y -i "$f" \
               -filter:a "atempo=1.5" \
-              -c:a aac -b:a 24k \
-              -metadata artist="Khalifa Tunaiji" \
+              -c:a aac -b:a 32k \
+              -metadata artist="Abdul Basit - Murattal" \
               -metadata title="Page ${page}" \
               "$out"; then
               echo "ffmpeg conversion failed for $f — skipping." | tee -a skipped_files.txt
